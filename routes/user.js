@@ -64,12 +64,13 @@ router.get('/sync/email/:email', protect, async (req, res) => {
       });
     }
     
+    console.log(`Looking up user by email: ${normalizedEmail}`);
     const user = await User.findOne({ email: normalizedEmail });
-    
     if (!user) {
+      console.error(`/sync/email/:email: User not found in DB for email: ${normalizedEmail}`);
       return res.status(404).json({
         success: false, 
-        message: 'User not found'
+        message: `User not found for email: ${normalizedEmail}`
       });
     }
     

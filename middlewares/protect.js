@@ -28,13 +28,13 @@ const protect = async (req, res, next) => {
     
     const jwtSecret = process.env.JWT_SECRET || "your_secure_secret_here";
     const decoded = jwt.verify(token, jwtSecret);
-    
     // Attach the user data to req.user, excluding the password field
     req.user = await User.findById(decoded.id).select("-password");
     if (!req.user) {
+      console.error(`protect.js: User not found in DB for decoded id: ${decoded.id}`);
       return res
         .status(404)
-        .json({ success: false, message: "User not found" });
+        .json({ success: false, message: `User not found for id: ${decoded.id}` });
     }
     next();
   } catch (error) {
