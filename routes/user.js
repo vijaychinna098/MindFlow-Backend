@@ -472,17 +472,40 @@ router.get('/profile', protect, async (req, res) => {
 router.put('/profile', protect, async (req, res) => {
   try {
     const updates = req.body;
+    if (!req.user || !req.user.id) {
+      console.error('No user found in JWT payload');
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: Invalid or expired token, or user does not exist',
+        error: 'NO_USER_IN_JWT'
+      });
+    }
     const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true });
-
+    if (!user) {
+      console.error('User not found for update:', req.user.id);
+      return res.status(404).json({
+        success: false,
+        message: 'User not found for update',
+        error: 'USER_NOT_FOUND'
+      });
+    }
     res.status(200).json({
       success: true,
       data: user
     });
   } catch (error) {
     console.error('Error updating user profile:', error);
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Unauthorized: Invalid or expired token',
+        error: error.name
+      });
+    }
     res.status(500).json({
       success: false,
-      message: 'Server error'
+      message: 'Server error',
+      error: error.message
     });
   }
 });
@@ -493,31 +516,25 @@ router.put('/profile', protect, async (req, res) => {
 router.get('/profile/:email', async (req, res) => {
   try {
     const { email } = req.params;
-    
     if (!email || typeof email !== 'string') {
+      console.error('Invalid email param:', email);
       return res.status(400).json({
         success: false,
-        message: 'Valid email is required'
+        message: 'Valid email is required',
+        error: 'INVALID_EMAIL_PARAM'
       });
     }
-    
-    // Normalize email to lowercase for case-insensitive matching
     const normalizedEmail = email.toLowerCase().trim();
     console.log(`Looking up user profile by email: ${normalizedEmail}`);
-    
     const user = await User.findOne({ email: normalizedEmail });
-    
     if (!user) {
-      console.log(`User not found with email: ${normalizedEmail}`);
+      console.error('User not found with email:', normalizedEmail);
       return res.status(404).json({
         success: false,
-        message: 'User not found with this email'
+        message: 'User not found with this email',
+        error: 'USER_NOT_FOUND'
       });
     }
-    
-    console.log(`User found: ${user.name} (${user.email})`);
-    
-    // Return a sanitized user object with only the needed fields
     res.json({
       id: user._id,
       name: user.name,
@@ -529,7 +546,8 @@ router.get('/profile/:email', async (req, res) => {
     console.error('Error looking up user by email:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while looking up user profile'
+      message: 'Server error while looking up user profile',
+      error: error.message
     });
   }
 });
